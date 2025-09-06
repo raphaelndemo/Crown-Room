@@ -1,4 +1,4 @@
-# Salon
+# Crown Room
 
 RSC-first stylist booking platform scaffold.
 
