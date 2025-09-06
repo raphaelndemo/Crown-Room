@@ -1,0 +1,1 @@
+export type Pagination = { take?: number; cursor?: string | null }; 

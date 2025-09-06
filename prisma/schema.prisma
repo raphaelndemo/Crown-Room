@@ -1,0 +1,125 @@
+datasource db { provider = "postgresql"; url = env("DATABASE_URL") }
+generator client { provider = "prisma-client-js" }
+
+enum Role { USER STYLIST ADMIN }
+enum BookingStatus { PENDING CONFIRMED CANCELLED NO_SHOW REFUNDED }
+enum PaymentStatus { REQUIRES_PAYMENT PENDING SUCCEEDED CANCELED REFUNDED }
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  phone     String?  @unique
+  role      Role     @default(USER)
+  stylist   Stylist?
+  bookings  Booking[] @relation("UserBookings")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Stylist {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id])
+  handle      String   @unique
+  displayName String
+  bio         String?
+  ratingAvg   Float    @default(0)
+  ratingCount Int      @default(0)
+  locationId  String?
+  location    Location? @relation(fields: [locationId], references: [id])
+  services    Service[]
+  timeSlots   TimeSlot[]
+  bookings    Booking[] @relation("StylistBookings")
+  stripeAccountId String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ServiceCategory {
+  id    String  @id @default(cuid())
+  name  String  @unique
+  slug  String  @unique
+  services Service[]
+}
+
+model Service {
+  id          String   @id @default(cuid())
+  stylistId   String
+  stylist     Stylist  @relation(fields: [stylistId], references: [id])
+  categoryId  String
+  category    ServiceCategory @relation(fields: [categoryId], references: [id])
+  name        String
+  description String?
+  durationMin Int
+  priceCents  Int
+  currency    String   @default("USD")
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  @@index([stylistId, isActive])
+  @@index([categoryId])
+}
+
+model Location {
+  id       String  @id @default(cuid())
+  city     String
+  country  String
+  lat      Float
+  lng      Float
+  timezone String
+  stylist  Stylist?
+  @@index([city])
+  @@index([lat, lng])
+}
+
+model TimeSlot {
+  id        String   @id @default(cuid())
+  stylistId String
+  stylist   Stylist  @relation(fields: [stylistId], references: [id])
+  start     DateTime
+  end       DateTime
+  booked    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  @@unique([stylistId, start, end])
+  @@index([stylistId, start])
+}
+
+model Booking {
+  id         String        @id @default(cuid())
+  userId     String
+  stylistId  String
+  serviceId  String
+  user       User          @relation("UserBookings", fields: [userId], references: [id])
+  stylist    Stylist       @relation("StylistBookings", fields: [stylistId], references: [id])
+  service    Service       @relation(fields: [serviceId], references: [id])
+  start      DateTime
+  end        DateTime
+  status     BookingStatus @default(PENDING)
+  priceCents Int
+  currency   String @default("USD")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  payment    Payment?
+  @@index([stylistId, start])
+  @@index([userId, start])
+}
+
+model Payment {
+  id          String        @id @default(cuid())
+  bookingId   String  @unique
+  booking     Booking @relation(fields: [bookingId], references: [id])
+  stripePiId  String  @unique
+  amountCents Int
+  currency    String
+  status      PaymentStatus
+  createdAt   DateTime @default(now())
+}
+
+model Review {
+  id        String  @id @default(cuid())
+  bookingId String  @unique
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+  booking   Booking @relation(fields: [bookingId], references: [id])
+} 
